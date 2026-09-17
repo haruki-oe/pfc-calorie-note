@@ -79,6 +79,11 @@
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* The hidden attribute only works if nothing else sets `display` on the
+     same element; #auth-gate and main both do (display:flex), which was
+     silently cancelling `.hidden = true/false` in JS and leaving both the
+     login card and the app showing at once, side by side. This restores it. */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   html { touch-action: manipulation; }
   body {
