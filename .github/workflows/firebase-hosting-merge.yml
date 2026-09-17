@@ -26,16 +26,6 @@ jobs:
           firebase deploy --only hosting --project diet-tool-dd7a9 --debug --non-interactive >> /tmp/deploy.log 2>&1
           echo "EXITCODE=$?" >> /tmp/deploy.log
           set -e
-          python3 - <<'PYEOF'
-import json, subprocess
-with open('/tmp/deploy.log') as f:
-    content = f.read()
-content = content[-55000:]
-body = "```\n" + content + "\n```"
-data = {"title": "deploy debug log", "body": body}
-with open('/tmp/issue_payload.json', 'w') as f:
-    json.dump(data, f)
-PYEOF
-          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" \
-            -d @/tmp/issue_payload.json
+          tail -c 55000 /tmp/deploy.log > /tmp/deploy_tail.log
+          jq -Rs '{title:"deploy debug log", body: ("```\n" + . + "\n```")}' /tmp/deploy_tail.log > /tmp/issue_payload.json
+          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" -d @/tmp/issue_payload.json
