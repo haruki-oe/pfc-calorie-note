@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PFCカロリーノート</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+
+<!-- Firebase (compat SDK: same collection()/doc()/where()/onSnapshot() API shape as the prototype) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --surface-2: #f3ede3;
+    --ink: #2b2620;
+    --ink-soft: #786f62;
+    --line: #e7ded0;
+    --accent: #3f6b52;
+    --accent-ink: #ffffff;
+    --accent-soft: #e5efe8;
+    /* categorical (validated: dataviz skill, slots 1-3, all-pairs safe both modes) */
+    --protein: #1baf7a; /* aqua */
+    --fat: #eb6834;     /* orange */
+    --carb: #2a78d6;    /* blue */
+    --protein-soft: color-mix(in srgb, var(--protein) 16%, var(--surface));
+    --fat-soft: color-mix(in srgb, var(--fat) 16%, var(--surface));
+    --carb-soft: color-mix(in srgb, var(--carb) 16%, var(--surface));
+    --danger: #b23b3b;
+    --shadow: 0 1px 2px rgba(43,38,32,.05), 0 8px 24px -12px rgba(43,38,32,.18);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17140f;
+      --surface: #201b15;
+      --surface-2: #29231b;
+      --ink: #f3ece0;
+      --ink-soft: #b3a897;
+      --line: #3a3225;
+      --accent: #7fb894;
+      --accent-ink: #14251b;
+      --accent-soft: #24332a;
+      --protein: #199e70;
+      --fat: #d95926;
+      --carb: #3987e5;
+      --danger: #e28b8b;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17140f;
+    --surface: #201b15;
+    --surface-2: #29231b;
+    --ink: #f3ece0;
+    --ink-soft: #b3a897;
+    --line: #3a3225;
+    --accent: #7fb894;
+    --accent-ink: #14251b;
+    --accent-soft: #24332a;
+    --protein: #199e70;
+    --fat: #d95926;
+    --carb: #3987e5;
+    --danger: #e28b8b;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 28px;
+    display: flex;
+    justify-content: center;
+  }
+  main { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 20px; }
+
+  h1, h2, .num-display {
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  }
+
+  header.app-head { display: flex; flex-direction: column; gap: 2px; }
+  header.app-head h1 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+  header.app-head p { margin: 0; color: var(--ink-soft); font-size: 0.85rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---- auth gate ---- */
+  #auth-gate {
+    min-height: 100%;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .auth-card { text-align: center; display: flex; flex-direction: column; gap: 14px; padding: 28px 22px; }
+  .auth-card h1 { font-size: 1.4rem; margin: 0; }
+  .auth-card p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.6; }
+  .google-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .google-btn:hover { background: var(--surface-2); }
+  .auth-error { color: var(--danger); font-size: 0.82rem; margin: 0; }
+  .auth-loading { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 40px 0; }
+
+  /* ---- signed-in user row ---- */
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .user-row .user-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .user-row .avatar { width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--surface-2); }
+  .user-row .user-name { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .day-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .day-nav button.nav-arrow {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    cursor: pointer;
+    flex: none;
+  }
+  .day-nav button.nav-arrow:hover { background: var(--accent-soft); }
+  .day-label { text-align: center; flex: 1; }
+  .day-label .date-str { font-weight: 600; font-size: 0.95rem; }
+  .day-label .today-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.68rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 7px;
+    border-radius: 999px;
+    vertical-align: middle;
+  }
+
+  h2.section-title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }
+
+  /* ---- merged totals + adjuster card ---- */
+  .summary-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .date-kcal-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .date-kcal-line .date-part { font-size: 0.85rem; color: var(--ink-soft); font-weight: 500; }
+  .date-kcal-line .dk-sep { font-size: 0.85rem; color: var(--ink-soft); }
+  .summary-top .kcal-num { font-size: 2.3rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+  .summary-top .kcal-unit { font-size: 0.85rem; color: var(--ink-soft); margin-left: 4px; }
+
+  .step-size-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+  .step-size-row .step-size-label { font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
+  .step-toggle { display: flex; gap: 6px; flex: 1; }
+  .step-toggle button {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .step-toggle button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .macro-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .macro-adjust-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    gap: 12px;
+  }
+  .macro-adjust-row .step-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .macro-adjust-row .step-btn:hover { background: var(--accent-soft); }
+  .macro-adjust-row .step-btn:active { transform: scale(0.96); }
+  .macro-adjust-row .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .macro-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .macro-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    text-align: center;
+    border-radius: 8px;
+    flex: none;
+  }
+  .macro-tag.p { background: var(--protein-soft); color: var(--protein); }
+  .macro-tag.f { background: var(--fat-soft); color: var(--fat); }
+  .macro-tag.c { background: var(--carb-soft); color: var(--carb); }
+  .macro-val { display: inline-flex; align-items: baseline; gap: 4px; }
+  .macro-val .val-g { font-size: 1.15rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .macro-val .val-sep { font-size: 0.7rem; color: var(--ink-soft); }
+  .macro-val .val-kcal { font-size: 0.7rem; font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .link-btn:hover { text-decoration: underline; }
+
+  label { font-size: 0.78rem; color: var(--ink-soft); }
+  input[type="number"] {
+    font: inherit;
+    font-size: 0.95rem;
+    padding: 9px 11px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    width: 100%;
+  }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- ratio (donut) card ---- */
+  .ratio-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .ratio-head h2 { margin: 0; }
+  .donut-row { display: flex; justify-content: center; gap: 28px; margin-bottom: 16px; flex-wrap: wrap; }
+  .donut-block { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .donut-wrap { position: relative; width: 116px; height: 116px; }
+  .donut-wrap svg { width: 100%; height: 100%; display: block; }
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+  }
+  .donut-center .dc-value { font-size: 0.95rem; font-weight: 600; }
+  .donut-center .dc-sub { font-size: 0.65rem; color: var(--ink-soft); }
+  .donut-label { font-size: 0.78rem; color: var(--ink-soft); font-weight: 500; }
+
+  table.ratio-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  table.ratio-table th {
+    font-weight: 500;
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+    text-align: right;
+    padding: 4px 6px;
+  }
+  table.ratio-table th:first-child, table.ratio-table td:first-child { text-align: left; }
+  table.ratio-table td { padding: 6px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.ratio-table td.name-cell { display: flex; align-items: center; gap: 6px; font-variant-numeric: normal; }
+  .swatch-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .swatch-dot.p { background: var(--protein); }
+  .swatch-dot.f { background: var(--fat); }
+  .swatch-dot.c { background: var(--carb); }
+  .delta-cell { color: var(--ink-soft); }
+
+  .ideal-settings {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ideal-settings p.hint { margin: 0; font-size: 0.75rem; color: var(--ink-soft); }
+  .ideal-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .ideal-inputs label { display: flex; flex-direction: column; gap: 5px; }
+  .ideal-actions { display: flex; justify-content: flex-end; }
+
+  .status-banner {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    background: var(--surface-2);
+    border-radius: 9px;
+    padding: 8px 12px;
+  }
+  .status-banner.warn { color: var(--fat); background: var(--fat-soft); }
+
+  @media (max-width: 420px) {
+    .donut-row { gap: 16px; }
+    .donut-wrap { width: 100px; height: 100px; }
+    .macro-adjust-row { grid-template-columns: 36px 1fr 36px; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-loading" class="auth-loading">読み込み中...</div>
+
+<div id="auth-gate" class="card" hidden>
+  <div class="auth-card">
+    <h1>PFCカロリーノート</h1>
+    <p>Googleアカウントでログインすると、あなた専用のPFC記録を保存できます。<br>他の人の記録は見えません。</p>
+    <button type="button" id="google-signin-btn" class="google-btn">Googleでログイン</button>
+    <p class="auth-error" id="auth-error" hidden></p>
+  </div>
+</div>
+
+<main id="app-root" hidden>
+  <header class="app-head">
+    <h1>PFCカロリーノート</h1>
+    <p>たんぱく質・脂質・炭水化物(g)からカロリーを自動計算して記録</p>
+  </header>
+
+  <div class="card user-row">
+    <div class="user-id">
+      <img class="avatar" id="user-avatar" alt="">
+      <span class="user-name" id="user-name">-</span>
+    </div>
+    <button type="button" class="link-btn" id="signout-btn">ログアウト</button>
+  </div>
+
+  <div id="sync-banner" class="status-banner" hidden></div>
+
+  <section class="card">
+    <div class="day-nav">
+      <button class="nav-arrow" id="prev-day" aria-label="前日">‹</button>
+      <div class="day-label">
+        <div class="date-str" id="date-str">-</div>
+      </div>
+      <button class="nav-arrow" id="next-day" aria-label="翌日">›</button>
+    </div>
+  </section>
+
+  <section class="card" id="totals-card">
+    <div class="summary-top">
+      <div class="date-kcal-line">
+        <span class="date-part" id="header-date-str">-</span><span class="dk-sep">/</span><span class="num-display kcal-num" id="total-kcal">0</span><span class="kcal-unit">kcal</span>
+      </div>
+    </div>
+
+    <div class="step-size-row">
+      <span class="step-size-label">増減幅</span>
+      <div class="step-toggle" id="step-toggle" role="group" aria-label="増減幅を選択">
+        <button type="button" data-step="1" aria-pressed="true">1g</button>
+        <button type="button" data-step="5" aria-pressed="false">5g</button>
+        <button type="button" data-step="10" aria-pressed="false">10g</button>
+      </div>
+    </div>
+
+    <div class="macro-row">
+      <div class="macro-adjust-row">
+        <button type="button" class="step-btn" data-macro="p" data-dir="-1" aria-label="Pを減らす">−</button>
+        <div class="macro-mid">
+          <span class="macro-tag p">P</span>
+          <span class="macro-val" id="val-p">0g/0kcal</span>
+        </div>
+        <button type="button" class="step-btn" data-macro="p" data-dir="1" aria-label="Pを増やす">＋</button>
+      </div>
+      <div class="macro-adjust-row">
+        <button type="button" class="step-btn" data-macro="f" data-dir="-1" aria-label="Fを減らす">−</button>
+        <div class="macro-mid">
+          <span class="macro-tag f">F</span>
+          <span class="macro-val" id="val-f">0g/0kcal</span>
+        </div>
+        <button type="button" class="step-btn" data-macro="f" data-dir="1" aria-label="Fを増やす">＋</button>
+      </div>
+      <div class="macro-adjust-row">
+        <button type="button" class="step-btn" data-macro="c" data-dir="-1" aria-label="Cを減らす">−</button>
+        <div class="macro-mid">
+          <span class="macro-tag c">C</span>
+          <span class="macro-val" id="val-c">0g/0kcal</span>
+        </div>
+        <button type="button" class="step-btn" data-macro="c" data-dir="1" aria-label="Cを増やす">＋</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="ratio-head">
+      <h2 class="section-title">カロリー構成比</h2>
+      <button type="button" class="link-btn" id="ideal-toggle">理想比率を設定</button>
+    </div>
+
+    <div class="donut-row">
+      <div class="donut-block">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" id="donut-current" aria-hidden="true"></svg>
+          <div class="donut-center">
+            <div class="dc-value" id="donut-current-value">-</div>
+            <div class="dc-sub">kcal</div>
+          </div>
+        </div>
+        <div class="donut-label">本日の構成</div>
+      </div>
+      <div class="donut-block">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" id="donut-ideal" aria-hidden="true"></svg>
+          <div class="donut-center">
+            <div class="dc-value" id="donut-ideal-value">-</div>
+            <div class="dc-sub">kcal</div>
+          </div>
+        </div>
+        <div class="donut-label">理想比率</div>
+      </div>
+    </div>
+
+    <table class="ratio-table">
+      <thead>
+        <tr><th style="text-align:left;">栄養素</th><th>本日</th><th>理想</th><th>理想差</th></tr>
+      </thead>
+      <tbody id="ratio-table-body"></tbody>
+    </table>
+
+    <div class="ideal-settings" id="ideal-settings" hidden>
+      <p class="hint">1日の目標摂取量(g)を入力すると、カロリーベースの理想構成比を自動計算します。あなたのアカウントに保存され、全端末で共有されます。</p>
+      <div class="ideal-inputs">
+        <label class="p"><span><span class="tagdot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--protein);margin-right:5px;"></span>P (g)</span>
+          <input type="number" id="ideal-p" min="0" step="1" value="150">
+        </label>
+        <label class="f"><span><span class="tagdot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--fat);margin-right:5px;"></span>F (g)</span>
+          <input type="number" id="ideal-f" min="0" step="1" value="45">
+        </label>
+        <label class="c"><span><span class="tagdot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--carb);margin-right:5px;"></span>C (g)</span>
+          <input type="number" id="ideal-c" min="0" step="1" value="250">
+        </label>
+      </div>
+      <div class="ideal-actions">
+        <button type="button" class="link-btn" id="ideal-reset">デフォルト(P150g/F45g/C250g)に戻す</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ============================================================
+  // Firebase config — REPLACE with your own project's values.
+  // Firebase console → プロジェクトの設定 → 全般 → マイアプリ(ウェブ) → SDK の設定と構成
+  // ============================================================
+  var firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  var KCAL_PER_G = { p: 4, f: 9, c: 4 };
+  var DEFAULT_IDEAL_TARGET = { p: 150, f: 45, c: 250 }; // grams/day, roughly a 3:2:5 kcal split at ~2000kcal
+  var FLUSH_DELAY_MS = 700;
+
+  function toDateStr(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function fromDateStr(s) {
+    var parts = s.split("-").map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  function formatDateLabel(d) {
+    var wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+    return (d.getMonth() + 1) + "月" + d.getDate() + "日(" + wd + ")";
+  }
+
+  function round1(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  var todayStr = toDateStr(new Date());
+  var state = {
+    uid: null,
+    currentDate: todayStr,
+    unsubscribe: null,
+    idealUnsubscribe: null,
+    stepSize: 1,
+    confirmed: { p: 0, f: 0, c: 0 },  // server-confirmed totals for currentDate
+    pending: { p: 0, f: 0, c: 0 },    // not-yet-flushed local delta for currentDate
+    flushTimer: null,
+    idealTarget: { p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c }, // grams/day
+    savingIdeal: false
+  };
+
+  var el = {
+    authLoading: document.getElementById("auth-loading"),
+    authGate: document.getElementById("auth-gate"),
+    authError: document.getElementById("auth-error"),
+    googleSigninBtn: document.getElementById("google-signin-btn"),
+    appRoot: document.getElementById("app-root"),
+    userAvatar: document.getElementById("user-avatar"),
+    userName: document.getElementById("user-name"),
+    signoutBtn: document.getElementById("signout-btn"),
+    dateStr: document.getElementById("date-str"),
+    headerDateStr: document.getElementById("header-date-str"),
+    prevDay: document.getElementById("prev-day"),
+    nextDay: document.getElementById("next-day"),
+    totalKcal: document.getElementById("total-kcal"),
+    valP: document.getElementById("val-p"),
+    valF: document.getElementById("val-f"),
+    valC: document.getElementById("val-c"),
+    syncBanner: document.getElementById("sync-banner"),
+    stepToggle: document.getElementById("step-toggle"),
+    donutCurrent: document.getElementById("donut-current"),
+    donutIdeal: document.getElementById("donut-ideal"),
+    donutCurrentValue: document.getElementById("donut-current-value"),
+    donutIdealValue: document.getElementById("donut-ideal-value"),
+    ratioTableBody: document.getElementById("ratio-table-body"),
+    idealToggle: document.getElementById("ideal-toggle"),
+    idealSettings: document.getElementById("ideal-settings"),
+    idealP: document.getElementById("ideal-p"),
+    idealF: document.getElementById("ideal-f"),
+    idealC: document.getElementById("ideal-c"),
+    idealReset: document.getElementById("ideal-reset")
+  };
+
+  function setBanner(text, warn) {
+    if (!text) { el.syncBanner.hidden = true; return; }
+    el.syncBanner.hidden = false;
+    el.syncBanner.textContent = text;
+    el.syncBanner.classList.toggle("warn", !!warn);
+  }
+
+  function renderDateLabel() {
+    var d = fromDateStr(state.currentDate);
+    var label = formatDateLabel(d);
+    if (state.currentDate === todayStr) label += "<span class=\"today-tag\">今日</span>";
+    el.dateStr.innerHTML = label;
+    el.headerDateStr.textContent = formatDateLabel(d);
+  }
+
+  function getDayTotals() {
+    return {
+      p: state.confirmed.p + state.pending.p,
+      f: state.confirmed.f + state.pending.f,
+      c: state.confirmed.c + state.pending.c
+    };
+  }
+
+  function macroValMarkup(grams, kcal) {
+    return "<span class=\"val-g\">" + round1(grams) + "g</span>" +
+      "<span class=\"val-sep\">/</span>" +
+      "<span class=\"val-kcal\">" + Math.round(kcal) + "kcal</span>";
+  }
+
+  function renderTotals() {
+    var t = getDayTotals();
+    var kcalP = t.p * KCAL_PER_G.p, kcalF = t.f * KCAL_PER_G.f, kcalC = t.c * KCAL_PER_G.c;
+    var totalKcal = kcalP + kcalF + kcalC;
+    el.totalKcal.textContent = String(Math.round(totalKcal));
+    el.valP.innerHTML = macroValMarkup(t.p, kcalP);
+    el.valF.innerHTML = macroValMarkup(t.f, kcalF);
+    el.valC.innerHTML = macroValMarkup(t.c, kcalC);
+
+    document.querySelectorAll(".step-btn[data-dir=\"-1\"]").forEach(function (btn) {
+      var macro = btn.getAttribute("data-macro");
+      btn.disabled = t[macro] <= 0;
+    });
+  }
+
+  // ---- donut / ratio chart ----
+  // categorical palette validated with the dataviz skill's checker
+  // (all-pairs CVD + normal-vision + contrast) against this card's surface.
+  var MACRO_ORDER = ["p", "f", "c"];
+  var MACRO_LABEL = { p: "たんぱく質 (P)", f: "脂質 (F)", c: "炭水化物 (C)" };
+
+  function pctFromGrams(p, f, c) {
+    var pk = p * KCAL_PER_G.p, fk = f * KCAL_PER_G.f, ck = c * KCAL_PER_G.c;
+    var total = pk + fk + ck;
+    if (total <= 0) return { p: 0, f: 0, c: 0, total: 0 };
+    return { p: (pk / total) * 100, f: (fk / total) * 100, c: (ck / total) * 100, total: total };
+  }
+
+  function buildDonut(svgEl, pct) {
+    var r = 40, cx = 50, cy = 50, sw = 15;
+    var circumference = 2 * Math.PI * r;
+    svgEl.innerHTML = "";
+
+    if (!pct || pct.total <= 0) {
+      var track = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      track.setAttribute("cx", cx); track.setAttribute("cy", cy); track.setAttribute("r", r);
+      track.setAttribute("fill", "none");
+      track.setAttribute("stroke", "var(--line)");
+      track.setAttribute("stroke-width", sw);
+      svgEl.appendChild(track);
+      return;
+    }
+
+    var group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("transform", "rotate(-90 " + cx + " " + cy + ")");
+    var cumulative = 0;
+    MACRO_ORDER.forEach(function (key) {
+      var pctVal = pct[key];
+      if (pctVal <= 0.001) return;
+      var len = (pctVal / 100) * circumference;
+      var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
+      circle.setAttribute("fill", "none");
+      circle.setAttribute("stroke", "var(--" + (key === "p" ? "protein" : key === "f" ? "fat" : "carb") + ")");
+      circle.setAttribute("stroke-width", sw);
+      circle.setAttribute("stroke-dasharray", len + " " + (circumference - len));
+      circle.setAttribute("stroke-dashoffset", -cumulative);
+      group.appendChild(circle);
+      cumulative += len;
+    });
+    svgEl.appendChild(group);
+  }
+
+  function renderIdealDelta(curVal, idealVal) {
+    var d = round1(curVal - idealVal);
+    if (Math.abs(d) < 0.05) return "±0pt";
+    return (d > 0 ? "+" : "") + d + "pt";
+  }
+
+  function renderRatioChart() {
+    var t = getDayTotals();
+    var curPct = pctFromGrams(t.p, t.f, t.c);
+    var idealPct = pctFromGrams(state.idealTarget.p, state.idealTarget.f, state.idealTarget.c);
+
+    buildDonut(el.donutCurrent, curPct);
+    buildDonut(el.donutIdeal, idealPct);
+
+    el.donutCurrentValue.textContent = curPct.total > 0 ? String(Math.round(curPct.total)) : "-";
+    el.donutIdealValue.textContent = idealPct.total > 0 ? String(Math.round(idealPct.total)) : "-";
+
+    el.ratioTableBody.innerHTML = "";
+    MACRO_ORDER.forEach(function (key) {
+      var tr = document.createElement("tr");
+      var curText = curPct.total > 0 ? round1(curPct[key]) + "%" : "-";
+      var idealText = idealPct.total > 0 ? round1(idealPct[key]) + "%" : "-";
+      var deltaText = (curPct.total > 0 && idealPct.total > 0) ? renderIdealDelta(curPct[key], idealPct[key]) : "-";
+      tr.innerHTML =
+        "<td class=\"name-cell\"><span class=\"swatch-dot " + key + "\"></span>" + MACRO_LABEL[key] + "</td>" +
+        "<td>" + curText + "</td>" +
+        "<td>" + idealText + "</td>" +
+        "<td class=\"delta-cell\">" + deltaText + "</td>";
+      el.ratioTableBody.appendChild(tr);
+    });
+  }
+
+  function renderAll() {
+    renderDateLabel();
+    renderTotals();
+    renderRatioChart();
+  }
+
+  // ---- step size (1g / 5g / 10g) ----
+  el.stepToggle.addEventListener("click", function (evt) {
+    var btn = evt.target.closest("button[data-step]");
+    if (!btn) return;
+    state.stepSize = parseFloat(btn.getAttribute("data-step"));
+    Array.prototype.forEach.call(el.stepToggle.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+  });
+
+  // ---- +/- adjusters on the merged totals card ----
+  document.querySelectorAll(".macro-adjust-row .step-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!state.uid) return;
+      var macro = btn.getAttribute("data-macro");
+      var dir = parseFloat(btn.getAttribute("data-dir"));
+      var t = getDayTotals();
+      var next = Math.max(0, t[macro] + dir * state.stepSize);
+      var actualDelta = next - t[macro];
+      if (Math.abs(actualDelta) < 1e-9) return;
+
+      state.pending[macro] += actualDelta;
+      renderAll();
+      scheduleFlush();
+    });
+  });
+
+  function scheduleFlush() {
+    if (state.flushTimer) clearTimeout(state.flushTimer);
+    state.flushTimer = setTimeout(flushPending, FLUSH_DELAY_MS);
+  }
+
+  function flushPending(forDate) {
+    if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null; }
+    if (!state.uid) return;
+    var date = forDate || state.currentDate;
+    var delta = state.pending;
+    var hasDelta = Math.abs(delta.p) > 1e-9 || Math.abs(delta.f) > 1e-9 || Math.abs(delta.c) > 1e-9;
+    if (!hasDelta) return;
+    state.pending = { p: 0, f: 0, c: 0 };
+    db.collection("users/" + state.uid + "/adjustments").add({
+      date: date, p: delta.p, f: delta.f, c: delta.c, createdAt: Date.now()
+    }).catch(function () {
+      // put it back so nothing is silently lost
+      if (date === state.currentDate) {
+        state.pending.p += delta.p; state.pending.f += delta.f; state.pending.c += delta.c;
+        renderAll();
+      }
+      setBanner("保存に失敗しました。しばらくしてからもう一度お試しください。", true);
+    });
+  }
+
+  // ---- Firestore-backed storage (per-user, shared across that user's devices) ----
+  function subscribeAdjustments() {
+    if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
+    var q = db.collection("users/" + state.uid + "/adjustments")
+      .where("date", "==", state.currentDate)
+      .limit(2000);
+    state.unsubscribe = q.onSnapshot(
+      function (snap) {
+        var totals = { p: 0, f: 0, c: 0 };
+        snap.forEach(function (d) {
+          var data = d.data() || {};
+          totals.p += Number(data.p) || 0;
+          totals.f += Number(data.f) || 0;
+          totals.c += Number(data.c) || 0;
+        });
+        state.confirmed = totals;
+        renderAll();
+      },
+      function () {
+        setBanner("同期でエラーが発生しました。しばらくしてから再読み込みしてください。", true);
+      }
+    );
+  }
+
+  function subscribeIdealTarget() {
+    if (state.idealUnsubscribe) { state.idealUnsubscribe(); state.idealUnsubscribe = null; }
+    state.idealUnsubscribe = db.doc("users/" + state.uid + "/settings/idealTarget").onSnapshot(
+      function (snap) {
+        if (state.savingIdeal) return; // avoid clobbering the field the user is typing in
+        var data = snap.exists ? snap.data() : null;
+        var target = {
+          p: data && typeof data.p === "number" ? data.p : DEFAULT_IDEAL_TARGET.p,
+          f: data && typeof data.f === "number" ? data.f : DEFAULT_IDEAL_TARGET.f,
+          c: data && typeof data.c === "number" ? data.c : DEFAULT_IDEAL_TARGET.c
+        };
+        state.idealTarget = target;
+        el.idealP.value = target.p;
+        el.idealF.value = target.f;
+        el.idealC.value = target.c;
+        renderRatioChart();
+      },
+      function () { /* keep local ideal target on error */ }
+    );
+  }
+
+  function saveIdealTarget(target) {
+    state.idealTarget = target;
+    renderRatioChart();
+    if (!state.uid) return;
+    state.savingIdeal = true;
+    db.doc("users/" + state.uid + "/settings/idealTarget").set(target)
+      .catch(function () {
+        setBanner("理想の目標量の保存に失敗しました。", true);
+      })
+      .finally(function () {
+        state.savingIdeal = false;
+      });
+  }
+
+  function goToDate(newDateStr) {
+    var prevDate = state.currentDate;
+    flushPending(prevDate);
+    state.currentDate = newDateStr;
+    state.confirmed = { p: 0, f: 0, c: 0 };
+    state.pending = { p: 0, f: 0, c: 0 };
+    subscribeAdjustments();
+    renderDateLabel();
+  }
+
+  el.prevDay.addEventListener("click", function () {
+    var d = fromDateStr(state.currentDate);
+    d.setDate(d.getDate() - 1);
+    goToDate(toDateStr(d));
+  });
+  el.nextDay.addEventListener("click", function () {
+    var d = fromDateStr(state.currentDate);
+    d.setDate(d.getDate() + 1);
+    goToDate(toDateStr(d));
+  });
+
+  // ---- ideal ratio settings UI ----
+  el.idealToggle.addEventListener("click", function () {
+    el.idealSettings.hidden = !el.idealSettings.hidden;
+    el.idealToggle.textContent = el.idealSettings.hidden ? "理想比率を設定" : "閉じる";
+  });
+
+  function readIdealInputs() {
+    return {
+      p: Math.max(0, parseFloat(el.idealP.value) || 0),
+      f: Math.max(0, parseFloat(el.idealF.value) || 0),
+      c: Math.max(0, parseFloat(el.idealC.value) || 0)
+    };
+  }
+
+  [el.idealP, el.idealF, el.idealC].forEach(function (input) {
+    input.addEventListener("change", function () {
+      saveIdealTarget(readIdealInputs());
+    });
+  });
+
+  el.idealReset.addEventListener("click", function () {
+    el.idealP.value = DEFAULT_IDEAL_TARGET.p;
+    el.idealF.value = DEFAULT_IDEAL_TARGET.f;
+    el.idealC.value = DEFAULT_IDEAL_TARGET.c;
+    saveIdealTarget({ p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c });
+  });
+
+  window.addEventListener("beforeunload", function () {
+    if (state.uid) flushPending();
+  });
+
+  // ---- auth ----
+  el.googleSigninBtn.addEventListener("click", function () {
+    el.authError.hidden = true;
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function (err) {
+      el.authError.hidden = false;
+      el.authError.textContent = "ログインに失敗しました: " + (err && err.message ? err.message : err);
+    });
+  });
+
+  el.signoutBtn.addEventListener("click", function () {
+    flushPending();
+    auth.signOut();
+  });
+
+  function teardownSubscriptions() {
+    if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
+    if (state.idealUnsubscribe) { state.idealUnsubscribe(); state.idealUnsubscribe = null; }
+    if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null; }
+  }
+
+  auth.onAuthStateChanged(function (user) {
+    el.authLoading.hidden = true;
+
+    if (!user) {
+      state.uid = null;
+      teardownSubscriptions();
+      el.appRoot.hidden = true;
+      el.authGate.hidden = false;
+      return;
+    }
+
+    state.uid = user.uid;
+    el.authGate.hidden = true;
+    el.appRoot.hidden = false;
+    el.userName.textContent = user.displayName || user.email || "";
+    el.userAvatar.src = user.photoURL || "";
+
+    state.currentDate = todayStr;
+    state.confirmed = { p: 0, f: 0, c: 0 };
+    state.pending = { p: 0, f: 0, c: 0 };
+    setBanner(null);
+    renderAll();
+    subscribeAdjustments();
+    subscribeIdealTarget();
+  });
+})();
+</script>
+</body>
+</html>
