@@ -937,23 +937,18 @@
   // after that, onAuthStateChanged finds the existing session on load and
   // switches straight to the PFC screen without ever showing auth-gate again.
   //
-  // Uses a full-page redirect (not a popup): iOS home-screen ("standalone")
-  // PWAs can't reliably open/close popup windows, which leaves the login
-  // screen stuck forever after a popup-based sign-in. signInWithRedirect
-  // navigates to Google and back to this same page, which works the same
-  // way in Safari, in the installed PWA, and everywhere else.
+  // Uses a popup (not a full-page redirect): a redirect round-trips through
+  // Google and Firebase's authDomain (a different origin from this site),
+  // and Safari's cross-site storage restrictions can drop the pending
+  // sign-in during that trip, landing back on the login screen. The popup
+  // keeps everything on this same page/origin the whole time.
   el.googleSigninBtn.addEventListener("click", function () {
     el.authError.hidden = true;
     var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider).catch(function (err) {
+    auth.signInWithPopup(provider).catch(function (err) {
       el.authError.hidden = false;
       el.authError.textContent = "ログインに失敗しました: " + (err && err.message ? err.message : err);
     });
-  });
-
-  auth.getRedirectResult().catch(function (err) {
-    el.authError.hidden = false;
-    el.authError.textContent = "ログインに失敗しました: " + (err && err.message ? err.message : err);
   });
 
   el.signoutBtn.addEventListener("click", function () {
