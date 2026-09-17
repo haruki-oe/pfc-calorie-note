@@ -369,6 +369,88 @@
   }
   .status-banner.warn { color: var(--fat); background: var(--fat-soft); }
 
+  /* ---- period summary (intake vs. expenditure) card ---- */
+  .target-settings {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .target-settings label { display: flex; flex-direction: column; gap: 5px; max-width: 220px; }
+
+  .target-note { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 0.78rem; color: var(--ink-soft); }
+  .target-note b { color: var(--ink); font-weight: 700; }
+
+  .balance-row { display: flex; gap: 10px; margin-top: 12px; }
+  .balance-box { flex: 1; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+  .balance-box .lbl { font-size: 0.72rem; color: var(--ink-soft); }
+  .balance-box .val { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .balance-box .val .unit { font-size: 0.68rem; font-weight: 400; color: var(--ink-soft); margin-left: 2px; }
+
+  .balance-hero { margin-top: 12px; padding: 14px; border-radius: 10px; text-align: center; }
+  .balance-hero.good { background: var(--accent-soft); color: var(--accent); }
+  .balance-hero.over { background: var(--fat-soft); color: var(--fat); }
+  .balance-hero .diff { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .balance-hero .tag { font-size: 0.78rem; font-weight: 600; margin-top: 2px; }
+
+  .bar-chart { margin-top: 18px; }
+  .bar-plot {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 120px;
+    position: relative;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
+  }
+  .target-line {
+    position: absolute;
+    left: 0; right: 0;
+    border-top: 1.5px dashed var(--ink-soft);
+    opacity: 0.6;
+  }
+  .target-line .tline-tag {
+    position: absolute;
+    right: 0;
+    top: -16px;
+    font-size: 0.65rem;
+    color: var(--ink-soft);
+    background: var(--surface);
+    padding: 0 4px;
+  }
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 0;
+    position: relative;
+  }
+  .bar-col .bar { width: 100%; max-width: 22px; border-radius: 4px 4px 2px 2px; }
+  .bar-col .bar.under { background: var(--accent); opacity: 0.85; }
+  .bar-col .bar.over { background: var(--fat); opacity: 0.9; }
+  .bar-col.is-today .bar { opacity: 1; }
+  .bar-col .bar-value {
+    position: absolute;
+    top: -16px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .bar-labels { display: flex; gap: 4px; margin-top: 6px; }
+  .bar-labels span { flex: 1; text-align: center; font-size: 0.65rem; color: var(--ink-soft); min-width: 0; }
+
+  .legend-row { display: flex; gap: 16px; justify-content: center; margin-top: 10px; font-size: 0.75rem; color: var(--ink-soft); }
+  .legend-row .item { display: flex; align-items: center; gap: 6px; }
+  .legend-row .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .legend-row .dot.under { background: var(--accent); }
+  .legend-row .dot.over { background: var(--fat); }
+
   @media (max-width: 420px) {
     .donut-row { gap: 16px; }
     .donut-wrap { width: 100px; height: 100px; }
@@ -523,6 +605,63 @@
       </div>
     </div>
   </section>
+
+  <section class="card">
+    <div class="ratio-head">
+      <h2 class="section-title">期間サマリー</h2>
+      <button type="button" class="link-btn" id="target-toggle">消費目安を設定</button>
+    </div>
+
+    <div class="step-size-row" style="margin-top: 0;">
+      <span class="step-size-label">期間</span>
+      <div class="step-toggle" id="period-toggle" role="group" aria-label="期間を選択">
+        <button type="button" data-period="today" aria-pressed="true">今日</button>
+        <button type="button" data-period="week" aria-pressed="false">1週間</button>
+        <button type="button" data-period="month" aria-pressed="false">1か月</button>
+      </div>
+    </div>
+
+    <div class="target-settings" id="target-settings" hidden>
+      <p class="hint">基礎代謝+活動量など、1日の消費カロリーの目安を入力して保存すると、摂取カロリーとの収支を計算します。この端末に保存されます。</p>
+      <label>
+        <span>消費目安 (kcal/日)</span>
+        <input type="number" id="target-input" min="0" step="10" value="2300">
+      </label>
+      <div class="ideal-actions">
+        <button type="button" class="save-btn" id="target-save">この内容で保存</button>
+      </div>
+    </div>
+
+    <div class="target-note">
+      <span>消費目安(基礎代謝+活動量)</span>
+      <b id="target-per-day-label">2,300kcal/日</b>
+    </div>
+
+    <div class="balance-row">
+      <div class="balance-box">
+        <div class="lbl" id="summary-intake-label">摂取合計</div>
+        <div class="val" id="summary-intake-val">-<span class="unit">kcal</span></div>
+      </div>
+      <div class="balance-box">
+        <div class="lbl" id="summary-target-label">消費目安の合計</div>
+        <div class="val" id="summary-target-val">-<span class="unit">kcal</span></div>
+      </div>
+    </div>
+
+    <div class="balance-hero good" id="balance-hero">
+      <div class="diff" id="balance-diff">-</div>
+      <div class="tag" id="balance-tag">-</div>
+    </div>
+
+    <div class="bar-chart">
+      <div class="bar-plot" id="summary-bar-plot"></div>
+      <div class="bar-labels" id="summary-bar-labels"></div>
+    </div>
+    <div class="legend-row">
+      <span class="item"><span class="dot under"></span>目標以内</span>
+      <span class="item"><span class="dot over"></span>目標オーバー</span>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -548,6 +687,7 @@
 
   var KCAL_PER_G = { p: 4, f: 9, c: 4 };
   var DEFAULT_IDEAL_TARGET = { p: 150, f: 45, c: 250 }; // grams/day, roughly a 3:2:5 kcal split at ~2000kcal
+  var DEFAULT_CALORIE_TARGET = 2300; // kcal/day, basal metabolism + activity estimate (user-editable)
   var FLUSH_DELAY_MS = 700;
 
   function toDateStr(d) {
@@ -583,7 +723,13 @@
     flushTimer: null,
     idealTarget: { p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c }, // grams/day (prefill only)
     idealConfigured: false, // becomes true only after the user explicitly saves a target
-    savingIdeal: false
+    savingIdeal: false,
+    calorieTarget: DEFAULT_CALORIE_TARGET, // kcal/day expenditure estimate (prefill only)
+    calorieTargetUnsubscribe: null,
+    savingTarget: false,
+    summaryPeriod: "today",
+    summaryUnsubscribe: null,
+    summarySeries: null // last-rendered {date, kcal}[] for the active summaryPeriod, so a target-value change can re-render without requerying
   };
 
   var el = {
@@ -619,7 +765,22 @@
     idealF: document.getElementById("ideal-f"),
     idealC: document.getElementById("ideal-c"),
     idealReset: document.getElementById("ideal-reset"),
-    idealSave: document.getElementById("ideal-save")
+    idealSave: document.getElementById("ideal-save"),
+    targetToggle: document.getElementById("target-toggle"),
+    targetSettings: document.getElementById("target-settings"),
+    targetInput: document.getElementById("target-input"),
+    targetSave: document.getElementById("target-save"),
+    targetPerDayLabel: document.getElementById("target-per-day-label"),
+    periodToggle: document.getElementById("period-toggle"),
+    summaryIntakeLabel: document.getElementById("summary-intake-label"),
+    summaryIntakeVal: document.getElementById("summary-intake-val"),
+    summaryTargetLabel: document.getElementById("summary-target-label"),
+    summaryTargetVal: document.getElementById("summary-target-val"),
+    balanceHero: document.getElementById("balance-hero"),
+    balanceDiff: document.getElementById("balance-diff"),
+    balanceTag: document.getElementById("balance-tag"),
+    summaryBarPlot: document.getElementById("summary-bar-plot"),
+    summaryBarLabels: document.getElementById("summary-bar-labels")
   };
 
   function setBanner(text, warn) {
@@ -875,6 +1036,154 @@
       });
   }
 
+  // ---- period summary (intake vs. expenditure target) ----
+  function addDays(dateStr, delta) {
+    var d = fromDateStr(dateStr);
+    d.setDate(d.getDate() + delta);
+    return toDateStr(d);
+  }
+
+  function formatWeekdayShort(d) {
+    return ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  }
+
+  function periodDays(period) {
+    return period === "today" ? 1 : period === "week" ? 7 : 30;
+  }
+
+  function subscribeCalorieTarget() {
+    if (state.calorieTargetUnsubscribe) { state.calorieTargetUnsubscribe(); state.calorieTargetUnsubscribe = null; }
+    state.calorieTargetUnsubscribe = db.doc("users/" + state.uid + "/settings/calorieTarget").onSnapshot(
+      function (snap) {
+        if (state.savingTarget) return; // avoid clobbering the field the user is typing in
+        var data = snap.exists ? snap.data() : null;
+        var value = data && typeof data.value === "number" ? data.value : DEFAULT_CALORIE_TARGET;
+        state.calorieTarget = value;
+        el.targetInput.value = value;
+        el.targetPerDayLabel.textContent = value.toLocaleString() + "kcal/日";
+        if (state.summarySeries) renderSummary(state.summaryPeriod, state.summarySeries);
+      },
+      function () { /* keep local target on error */ }
+    );
+  }
+
+  function saveCalorieTarget(value) {
+    state.calorieTarget = value;
+    el.targetPerDayLabel.textContent = value.toLocaleString() + "kcal/日";
+    if (state.summarySeries) renderSummary(state.summaryPeriod, state.summarySeries);
+    if (!state.uid) return;
+    state.savingTarget = true;
+    db.doc("users/" + state.uid + "/settings/calorieTarget").set({ value: value })
+      .catch(function () {
+        setBanner("消費目安の保存に失敗しました。", true);
+      })
+      .finally(function () {
+        state.savingTarget = false;
+      });
+  }
+
+  function subscribeSummary(period) {
+    if (state.summaryUnsubscribe) { state.summaryUnsubscribe(); state.summaryUnsubscribe = null; }
+    state.summarySeries = null;
+    if (!state.uid) return;
+    var days = periodDays(period);
+    var startDate = addDays(todayStr, -(days - 1));
+    var q = db.collection("users/" + state.uid + "/adjustments")
+      .where("date", ">=", startDate)
+      .where("date", "<=", todayStr);
+    state.summaryUnsubscribe = q.onSnapshot(
+      function (snap) {
+        var byDate = {};
+        snap.forEach(function (docSnap) {
+          var data = docSnap.data() || {};
+          var date = data.date;
+          if (!date) return;
+          if (!byDate[date]) byDate[date] = { p: 0, f: 0, c: 0 };
+          byDate[date].p += Number(data.p) || 0;
+          byDate[date].f += Number(data.f) || 0;
+          byDate[date].c += Number(data.c) || 0;
+        });
+        var series = [];
+        for (var i = 0; i < days; i++) {
+          var date = addDays(startDate, i);
+          var t = byDate[date] || { p: 0, f: 0, c: 0 };
+          var kcal = t.p * KCAL_PER_G.p + t.f * KCAL_PER_G.f + t.c * KCAL_PER_G.c;
+          series.push({ date: date, kcal: kcal });
+        }
+        state.summarySeries = series;
+        if (state.summaryPeriod === period) renderSummary(period, series);
+      },
+      function () {
+        setBanner("サマリーの取得でエラーが発生しました。", true);
+      }
+    );
+  }
+
+  function renderSummary(period, series) {
+    var target = state.calorieTarget;
+    var intakeTotal = series.reduce(function (sum, d) { return sum + d.kcal; }, 0);
+    var targetTotal = target * series.length;
+
+    el.summaryIntakeLabel.textContent = period === "today" ? "摂取" : "摂取合計";
+    el.summaryTargetLabel.textContent = period === "today" ? "消費目安" : "消費目安の合計";
+    el.summaryIntakeVal.innerHTML = Math.round(intakeTotal).toLocaleString() + "<span class=\"unit\">kcal</span>";
+    el.summaryTargetVal.innerHTML = Math.round(targetTotal).toLocaleString() + "<span class=\"unit\">kcal</span>";
+
+    var diff = intakeTotal - targetTotal;
+    if (diff <= 0) {
+      el.balanceHero.className = "balance-hero good";
+      el.balanceDiff.textContent = Math.round(diff).toLocaleString() + "kcal";
+      el.balanceTag.textContent = "消費が上回っています(順調)";
+    } else {
+      el.balanceHero.className = "balance-hero over";
+      el.balanceDiff.textContent = "+" + Math.round(diff).toLocaleString() + "kcal";
+      el.balanceTag.textContent = "摂取が消費を上回っています";
+    }
+
+    el.summaryBarPlot.innerHTML = "";
+    el.summaryBarLabels.innerHTML = "";
+    var maxKcal = series.reduce(function (m, d) { return Math.max(m, d.kcal); }, 0);
+    var maxVal = Math.max(target, maxKcal) * 1.1 || 1;
+
+    var line = document.createElement("div");
+    line.className = "target-line";
+    line.style.bottom = Math.min(100, (target / maxVal) * 100) + "%";
+    var lineTag = document.createElement("span");
+    lineTag.className = "tline-tag";
+    lineTag.textContent = "目標" + Math.round(target).toLocaleString();
+    line.appendChild(lineTag);
+    el.summaryBarPlot.appendChild(line);
+
+    series.forEach(function (d, i) {
+      var isToday = d.date === todayStr;
+      var col = document.createElement("div");
+      col.className = "bar-col" + (isToday ? " is-today" : "");
+      var bar = document.createElement("div");
+      bar.className = "bar " + (d.kcal <= target ? "under" : "over");
+      bar.style.height = Math.max(2, (d.kcal / maxVal) * 100) + "%";
+      if (period === "today") bar.style.maxWidth = "64px";
+      bar.title = Math.round(d.kcal) + "kcal";
+      col.appendChild(bar);
+
+      if (period === "today" || period === "week" || isToday) {
+        var val = document.createElement("span");
+        val.className = "bar-value";
+        val.textContent = Math.round(d.kcal);
+        col.appendChild(val);
+      }
+      el.summaryBarPlot.appendChild(col);
+
+      var lbl = document.createElement("span");
+      if (period === "week") {
+        lbl.textContent = formatWeekdayShort(fromDateStr(d.date));
+      } else if (period === "month") {
+        var dnum = fromDateStr(d.date).getDate();
+        if (i === 0 || i === series.length - 1 || i % 10 === 9) lbl.textContent = dnum + "日";
+      }
+      el.summaryBarLabels.appendChild(lbl);
+    });
+  }
+
   function goToDate(newDateStr) {
     var prevDate = state.currentDate;
     flushPending(prevDate);
@@ -921,6 +1230,28 @@
     saveIdealTarget({ p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c });
   });
 
+  // ---- period summary UI ----
+  el.targetToggle.addEventListener("click", function () {
+    el.targetSettings.hidden = !el.targetSettings.hidden;
+    el.targetToggle.textContent = el.targetSettings.hidden ? "消費目安を設定" : "閉じる";
+  });
+
+  el.targetSave.addEventListener("click", function () {
+    var value = parseFloat(el.targetInput.value);
+    if (!isFinite(value) || value < 0) return;
+    saveCalorieTarget(value);
+  });
+
+  el.periodToggle.addEventListener("click", function (evt) {
+    var btn = evt.target.closest("button[data-period]");
+    if (!btn) return;
+    state.summaryPeriod = btn.getAttribute("data-period");
+    Array.prototype.forEach.call(el.periodToggle.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+    subscribeSummary(state.summaryPeriod);
+  });
+
   window.addEventListener("beforeunload", function () {
     if (state.uid) flushPending();
   });
@@ -954,6 +1285,9 @@
   function teardownSubscriptions() {
     if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
     if (state.idealUnsubscribe) { state.idealUnsubscribe(); state.idealUnsubscribe = null; }
+    if (state.calorieTargetUnsubscribe) { state.calorieTargetUnsubscribe(); state.calorieTargetUnsubscribe = null; }
+    if (state.summaryUnsubscribe) { state.summaryUnsubscribe(); state.summaryUnsubscribe = null; }
+    state.summarySeries = null;
     if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null; }
   }
 
@@ -985,6 +1319,8 @@
     renderAll();
     subscribeAdjustments();
     subscribeIdealTarget();
+    subscribeCalorieTarget();
+    subscribeSummary(state.summaryPeriod);
   });
 })();
 </script>
