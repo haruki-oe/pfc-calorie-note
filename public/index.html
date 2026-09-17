@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>PFCカロリーノート</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
 
@@ -78,8 +78,9 @@
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
   }
 
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
+  html { touch-action: manipulation; }
   body {
     margin: 0;
     background: var(--bg);
@@ -89,7 +90,9 @@
     padding-block: 28px;
     display: flex;
     justify-content: center;
+    touch-action: manipulation;
   }
+  button { touch-action: manipulation; }
   main { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 20px; }
 
   h1, h2, .num-display {
@@ -108,48 +111,7 @@
     box-shadow: var(--shadow);
   }
 
-  /* ---- auth gate ---- */
-  #auth-gate {
-    min-height: 100%;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .auth-card { text-align: center; display: flex; flex-direction: column; gap: 14px; padding: 28px 22px; }
-  .auth-card h1 { font-size: 1.4rem; margin: 0; }
-  .auth-card p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.6; }
-  .google-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink);
-    border-radius: 10px;
-    padding: 11px 18px;
-    font: inherit;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .google-btn:hover { background: var(--surface-2); }
-  .auth-error { color: var(--danger); font-size: 0.82rem; margin: 0; }
   .auth-loading { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 40px 0; }
-
-  /* ---- signed-in user row ---- */
-  .user-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    justify-content: space-between;
-  }
-  .user-row .user-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .user-row .avatar { width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--surface-2); }
-  .user-row .user-name { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .day-nav {
     display: flex;
@@ -274,7 +236,7 @@
   label { font-size: 0.78rem; color: var(--ink-soft); }
   input[type="number"] {
     font: inherit;
-    font-size: 0.95rem;
+    font-size: 16px; /* keep >=16px: iOS Safari auto-zooms on focus below this */
     padding: 9px 11px;
     border-radius: 9px;
     border: 1px solid var(--line);
@@ -333,7 +295,19 @@
   .ideal-settings p.hint { margin: 0; font-size: 0.75rem; color: var(--ink-soft); }
   .ideal-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .ideal-inputs label { display: flex; flex-direction: column; gap: 5px; }
-  .ideal-actions { display: flex; justify-content: flex-end; }
+  .ideal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .save-btn {
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .save-btn:hover { opacity: 0.92; }
 
   .status-banner {
     font-size: 0.78rem;
@@ -355,28 +329,11 @@
 
 <div id="auth-loading" class="auth-loading">読み込み中...</div>
 
-<div id="auth-gate" class="card" hidden>
-  <div class="auth-card">
-    <h1>PFCカロリーノート</h1>
-    <p>Googleアカウントでログインすると、あなた専用のPFC記録を保存できます。<br>他の人の記録は見えません。</p>
-    <button type="button" id="google-signin-btn" class="google-btn">Googleでログイン</button>
-    <p class="auth-error" id="auth-error" hidden></p>
-  </div>
-</div>
-
 <main id="app-root" hidden>
   <header class="app-head">
     <h1>PFCカロリーノート</h1>
     <p>たんぱく質・脂質・炭水化物(g)からカロリーを自動計算して記録</p>
   </header>
-
-  <div class="card user-row">
-    <div class="user-id">
-      <img class="avatar" id="user-avatar" alt="">
-      <span class="user-name" id="user-name">-</span>
-    </div>
-    <button type="button" class="link-btn" id="signout-btn">ログアウト</button>
-  </div>
 
   <div id="sync-banner" class="status-banner" hidden></div>
 
@@ -398,8 +355,8 @@
     </div>
 
     <div class="step-size-row">
-      <span class="step-size-label">増減幅</span>
-      <div class="step-toggle" id="step-toggle" role="group" aria-label="増減幅を選択">
+      <span class="step-size-label">きざみ</span>
+      <div class="step-toggle" id="step-toggle" role="group" aria-label="きざみ幅を選択">
         <button type="button" data-step="1" aria-pressed="true">1g</button>
         <button type="button" data-step="5" aria-pressed="false">5g</button>
         <button type="button" data-step="10" aria-pressed="false">10g</button>
@@ -471,7 +428,7 @@
     </table>
 
     <div class="ideal-settings" id="ideal-settings" hidden>
-      <p class="hint">1日の目標摂取量(g)を入力すると、カロリーベースの理想構成比を自動計算します。あなたのアカウントに保存され、全端末で共有されます。</p>
+      <p class="hint">1日の目標摂取量(g)を入力して保存すると、カロリーベースの理想構成比を自動計算します。保存するまでは「理想比率」は表示されません。この端末に保存されます。</p>
       <div class="ideal-inputs">
         <label class="p"><span><span class="tagdot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--protein);margin-right:5px;"></span>P (g)</span>
           <input type="number" id="ideal-p" min="0" step="1" value="150">
@@ -484,7 +441,8 @@
         </label>
       </div>
       <div class="ideal-actions">
-        <button type="button" class="link-btn" id="ideal-reset">デフォルト(P150g/F45g/C250g)に戻す</button>
+        <button type="button" class="link-btn" id="ideal-reset">デフォルト(P150g/F45g/C250g)で設定</button>
+        <button type="button" class="save-btn" id="ideal-save">この内容で設定を保存</button>
       </div>
     </div>
   </section>
@@ -546,19 +504,14 @@
     confirmed: { p: 0, f: 0, c: 0 },  // server-confirmed totals for currentDate
     pending: { p: 0, f: 0, c: 0 },    // not-yet-flushed local delta for currentDate
     flushTimer: null,
-    idealTarget: { p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c }, // grams/day
+    idealTarget: { p: DEFAULT_IDEAL_TARGET.p, f: DEFAULT_IDEAL_TARGET.f, c: DEFAULT_IDEAL_TARGET.c }, // grams/day (prefill only)
+    idealConfigured: false, // becomes true only after the user explicitly saves a target
     savingIdeal: false
   };
 
   var el = {
     authLoading: document.getElementById("auth-loading"),
-    authGate: document.getElementById("auth-gate"),
-    authError: document.getElementById("auth-error"),
-    googleSigninBtn: document.getElementById("google-signin-btn"),
     appRoot: document.getElementById("app-root"),
-    userAvatar: document.getElementById("user-avatar"),
-    userName: document.getElementById("user-name"),
-    signoutBtn: document.getElementById("signout-btn"),
     dateStr: document.getElementById("date-str"),
     headerDateStr: document.getElementById("header-date-str"),
     prevDay: document.getElementById("prev-day"),
@@ -579,7 +532,8 @@
     idealP: document.getElementById("ideal-p"),
     idealF: document.getElementById("ideal-f"),
     idealC: document.getElementById("ideal-c"),
-    idealReset: document.getElementById("ideal-reset")
+    idealReset: document.getElementById("ideal-reset"),
+    idealSave: document.getElementById("ideal-save")
   };
 
   function setBanner(text, warn) {
@@ -683,7 +637,9 @@
   function renderRatioChart() {
     var t = getDayTotals();
     var curPct = pctFromGrams(t.p, t.f, t.c);
-    var idealPct = pctFromGrams(state.idealTarget.p, state.idealTarget.f, state.idealTarget.c);
+    var idealPct = state.idealConfigured
+      ? pctFromGrams(state.idealTarget.p, state.idealTarget.f, state.idealTarget.c)
+      : { p: 0, f: 0, c: 0, total: 0 };
 
     buildDonut(el.donutCurrent, curPct);
     buildDonut(el.donutIdeal, idealPct);
@@ -794,12 +750,14 @@
       function (snap) {
         if (state.savingIdeal) return; // avoid clobbering the field the user is typing in
         var data = snap.exists ? snap.data() : null;
+        var configured = !!(data && data.configured);
         var target = {
           p: data && typeof data.p === "number" ? data.p : DEFAULT_IDEAL_TARGET.p,
           f: data && typeof data.f === "number" ? data.f : DEFAULT_IDEAL_TARGET.f,
           c: data && typeof data.c === "number" ? data.c : DEFAULT_IDEAL_TARGET.c
         };
         state.idealTarget = target;
+        state.idealConfigured = configured;
         el.idealP.value = target.p;
         el.idealF.value = target.f;
         el.idealC.value = target.c;
@@ -811,10 +769,13 @@
 
   function saveIdealTarget(target) {
     state.idealTarget = target;
+    state.idealConfigured = true;
     renderRatioChart();
     if (!state.uid) return;
     state.savingIdeal = true;
-    db.doc("users/" + state.uid + "/settings/idealTarget").set(target)
+    db.doc("users/" + state.uid + "/settings/idealTarget").set({
+      p: target.p, f: target.f, c: target.c, configured: true
+    })
       .catch(function () {
         setBanner("理想の目標量の保存に失敗しました。", true);
       })
@@ -858,10 +819,8 @@
     };
   }
 
-  [el.idealP, el.idealF, el.idealC].forEach(function (input) {
-    input.addEventListener("change", function () {
-      saveIdealTarget(readIdealInputs());
-    });
+  el.idealSave.addEventListener("click", function () {
+    saveIdealTarget(readIdealInputs());
   });
 
   el.idealReset.addEventListener("click", function () {
@@ -876,20 +835,12 @@
   });
 
   // ---- auth ----
-  el.googleSigninBtn.addEventListener("click", function () {
-    el.authError.hidden = true;
-    var provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(function (err) {
-      el.authError.hidden = false;
-      el.authError.textContent = "ログインに失敗しました: " + (err && err.message ? err.message : err);
-    });
-  });
-
-  el.signoutBtn.addEventListener("click", function () {
-    flushPending();
-    auth.signOut();
-  });
-
+  // No sign-in screen: each browser/device is silently issued its own
+  // anonymous Firebase identity, and all data is scoped to that identity
+  // via the Firestore rules (users/{uid}/**). Nothing is shared between
+  // different people or different devices — each install starts fresh.
+  // Requires "匿名" (Anonymous) to be enabled under
+  // Firebase console → Authentication → Sign-in method.
   function teardownSubscriptions() {
     if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
     if (state.idealUnsubscribe) { state.idealUnsubscribe(); state.idealUnsubscribe = null; }
@@ -897,21 +848,19 @@
   }
 
   auth.onAuthStateChanged(function (user) {
-    el.authLoading.hidden = true;
-
     if (!user) {
       state.uid = null;
       teardownSubscriptions();
       el.appRoot.hidden = true;
-      el.authGate.hidden = false;
+      auth.signInAnonymously().catch(function (err) {
+        el.authLoading.textContent = "読み込みに失敗しました: " + (err && err.message ? err.message : err);
+      });
       return;
     }
 
+    el.authLoading.hidden = true;
     state.uid = user.uid;
-    el.authGate.hidden = true;
     el.appRoot.hidden = false;
-    el.userName.textContent = user.displayName || user.email || "";
-    el.userAvatar.src = user.photoURL || "";
 
     state.currentDate = todayStr;
     state.confirmed = { p: 0, f: 0, c: 0 };
