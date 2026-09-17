@@ -111,7 +111,48 @@
     box-shadow: var(--shadow);
   }
 
+  /* ---- auth gate ---- */
+  #auth-gate {
+    min-height: 100%;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .auth-card { text-align: center; display: flex; flex-direction: column; gap: 14px; padding: 28px 22px; }
+  .auth-card h1 { font-size: 1.4rem; margin: 0; }
+  .auth-card p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.6; }
+  .google-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .google-btn:hover { background: var(--surface-2); }
+  .auth-error { color: var(--danger); font-size: 0.82rem; margin: 0; }
   .auth-loading { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 40px 0; }
+
+  /* ---- signed-in user row ---- */
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .user-row .user-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .user-row .avatar { width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--surface-2); }
+  .user-row .user-name { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .day-nav {
     display: flex;
@@ -175,42 +216,16 @@
     font-weight: 600;
   }
 
-  .macro-row { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-  .macro-adjust-row {
-    display: grid;
-    grid-template-columns: 40px 1fr 40px;
-    align-items: center;
-    gap: 12px;
-  }
-  .macro-adjust-row .step-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 11px;
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--ink);
-    font-size: 1.2rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .macro-adjust-row .step-btn:hover { background: var(--accent-soft); }
-  .macro-adjust-row .step-btn:active { transform: scale(0.96); }
-  .macro-adjust-row .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .macro-mid {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: var(--surface-2);
-    border-radius: 10px;
-    padding: 8px 10px;
-  }
+  .macro-row { display: flex; flex-direction: column; margin-top: 16px; }
+  .macro-adjust-row { padding: 12px 2px; }
+  .macro-adjust-row + .macro-adjust-row { border-top: 1px solid var(--line); }
+  .macro-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 9px; }
   .macro-tag {
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     padding: 3px 9px;
     text-align: center;
-    border-radius: 8px;
+    border-radius: 7px;
     flex: none;
   }
   .macro-tag.p { background: var(--protein-soft); color: var(--protein); }
@@ -220,6 +235,37 @@
   .macro-val .val-g { font-size: 1.15rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
   .macro-val .val-sep { font-size: 0.7rem; color: var(--ink-soft); }
   .macro-val .val-kcal { font-size: 0.7rem; font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .macro-bar-row { display: flex; align-items: center; gap: 10px; }
+  .macro-bar-track { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .macro-bar-fill { height: 100%; border-radius: 999px; width: 0%; transition: width 0.25s ease; }
+  .macro-bar-fill.p { background: var(--protein); }
+  .macro-bar-fill.f { background: var(--fat); }
+  .macro-bar-fill.c { background: var(--carb); }
+
+  .macro-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    padding: 3px;
+    flex: none;
+  }
+  .macro-controls .step-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .macro-controls .step-btn:hover { background: var(--surface); }
+  .macro-controls .step-btn:active { transform: scale(0.94); }
+  .macro-controls .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .link-btn {
     background: none;
@@ -321,7 +367,6 @@
   @media (max-width: 420px) {
     .donut-row { gap: 16px; }
     .donut-wrap { width: 100px; height: 100px; }
-    .macro-adjust-row { grid-template-columns: 36px 1fr 36px; gap: 8px; }
   }
 </style>
 </head>
@@ -329,11 +374,28 @@
 
 <div id="auth-loading" class="auth-loading">読み込み中...</div>
 
+<div id="auth-gate" class="card" hidden>
+  <div class="auth-card">
+    <h1>PFCカロリーノート</h1>
+    <p>Googleアカウントでログインすると、あなた専用のPFC記録を保存できます。<br>他の人の記録は見えません。</p>
+    <button type="button" id="google-signin-btn" class="google-btn">Googleでログイン</button>
+    <p class="auth-error" id="auth-error" hidden></p>
+  </div>
+</div>
+
 <main id="app-root" hidden>
   <header class="app-head">
     <h1>PFCカロリーノート</h1>
     <p>たんぱく質・脂質・炭水化物(g)からカロリーを自動計算して記録</p>
   </header>
+
+  <div class="card user-row">
+    <div class="user-id">
+      <img class="avatar" id="user-avatar" alt="">
+      <span class="user-name" id="user-name">-</span>
+    </div>
+    <button type="button" class="link-btn" id="signout-btn">ログアウト</button>
+  </div>
 
   <div id="sync-banner" class="status-banner" hidden></div>
 
@@ -355,8 +417,8 @@
     </div>
 
     <div class="step-size-row">
-      <span class="step-size-label">きざみ</span>
-      <div class="step-toggle" id="step-toggle" role="group" aria-label="きざみ幅を選択">
+      <span class="step-size-label">増減幅</span>
+      <div class="step-toggle" id="step-toggle" role="group" aria-label="増減幅を選択">
         <button type="button" data-step="1" aria-pressed="true">1g</button>
         <button type="button" data-step="5" aria-pressed="false">5g</button>
         <button type="button" data-step="10" aria-pressed="false">10g</button>
@@ -365,28 +427,43 @@
 
     <div class="macro-row">
       <div class="macro-adjust-row">
-        <button type="button" class="step-btn" data-macro="p" data-dir="-1" aria-label="Pを減らす">−</button>
-        <div class="macro-mid">
+        <div class="macro-top">
           <span class="macro-tag p">P</span>
           <span class="macro-val" id="val-p">0g/0kcal</span>
         </div>
-        <button type="button" class="step-btn" data-macro="p" data-dir="1" aria-label="Pを増やす">＋</button>
+        <div class="macro-bar-row">
+          <div class="macro-bar-track"><div class="macro-bar-fill p" id="bar-p"></div></div>
+          <div class="macro-controls">
+            <button type="button" class="step-btn" data-macro="p" data-dir="-1" aria-label="Pを減らす">−</button>
+            <button type="button" class="step-btn" data-macro="p" data-dir="1" aria-label="Pを増やす">＋</button>
+          </div>
+        </div>
       </div>
       <div class="macro-adjust-row">
-        <button type="button" class="step-btn" data-macro="f" data-dir="-1" aria-label="Fを減らす">−</button>
-        <div class="macro-mid">
+        <div class="macro-top">
           <span class="macro-tag f">F</span>
           <span class="macro-val" id="val-f">0g/0kcal</span>
         </div>
-        <button type="button" class="step-btn" data-macro="f" data-dir="1" aria-label="Fを増やす">＋</button>
+        <div class="macro-bar-row">
+          <div class="macro-bar-track"><div class="macro-bar-fill f" id="bar-f"></div></div>
+          <div class="macro-controls">
+            <button type="button" class="step-btn" data-macro="f" data-dir="-1" aria-label="Fを減らす">−</button>
+            <button type="button" class="step-btn" data-macro="f" data-dir="1" aria-label="Fを増やす">＋</button>
+          </div>
+        </div>
       </div>
       <div class="macro-adjust-row">
-        <button type="button" class="step-btn" data-macro="c" data-dir="-1" aria-label="Cを減らす">−</button>
-        <div class="macro-mid">
+        <div class="macro-top">
           <span class="macro-tag c">C</span>
           <span class="macro-val" id="val-c">0g/0kcal</span>
         </div>
-        <button type="button" class="step-btn" data-macro="c" data-dir="1" aria-label="Cを増やす">＋</button>
+        <div class="macro-bar-row">
+          <div class="macro-bar-track"><div class="macro-bar-fill c" id="bar-c"></div></div>
+          <div class="macro-controls">
+            <button type="button" class="step-btn" data-macro="c" data-dir="-1" aria-label="Cを減らす">−</button>
+            <button type="button" class="step-btn" data-macro="c" data-dir="1" aria-label="Cを増やす">＋</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -511,7 +588,13 @@
 
   var el = {
     authLoading: document.getElementById("auth-loading"),
+    authGate: document.getElementById("auth-gate"),
+    authError: document.getElementById("auth-error"),
+    googleSigninBtn: document.getElementById("google-signin-btn"),
     appRoot: document.getElementById("app-root"),
+    userAvatar: document.getElementById("user-avatar"),
+    userName: document.getElementById("user-name"),
+    signoutBtn: document.getElementById("signout-btn"),
     dateStr: document.getElementById("date-str"),
     headerDateStr: document.getElementById("header-date-str"),
     prevDay: document.getElementById("prev-day"),
@@ -520,6 +603,9 @@
     valP: document.getElementById("val-p"),
     valF: document.getElementById("val-f"),
     valC: document.getElementById("val-c"),
+    barP: document.getElementById("bar-p"),
+    barF: document.getElementById("bar-f"),
+    barC: document.getElementById("bar-c"),
     syncBanner: document.getElementById("sync-banner"),
     stepToggle: document.getElementById("step-toggle"),
     donutCurrent: document.getElementById("donut-current"),
@@ -573,6 +659,11 @@
     el.valP.innerHTML = macroValMarkup(t.p, kcalP);
     el.valF.innerHTML = macroValMarkup(t.f, kcalF);
     el.valC.innerHTML = macroValMarkup(t.c, kcalC);
+
+    var curPct = pctFromGrams(t.p, t.f, t.c);
+    el.barP.style.width = curPct.p + "%";
+    el.barF.style.width = curPct.f + "%";
+    el.barC.style.width = curPct.c + "%";
 
     document.querySelectorAll(".step-btn[data-dir=\"-1\"]").forEach(function (btn) {
       var macro = btn.getAttribute("data-macro");
@@ -835,32 +926,51 @@
   });
 
   // ---- auth ----
-  // No sign-in screen: each browser/device is silently issued its own
-  // anonymous Firebase identity, and all data is scoped to that identity
-  // via the Firestore rules (users/{uid}/**). Nothing is shared between
-  // different people or different devices — each install starts fresh.
-  // Requires "匿名" (Anonymous) to be enabled under
-  // Firebase console → Authentication → Sign-in method.
+  // Google sign-in, kept signed in indefinitely (Firebase's default "local"
+  // persistence survives closing the browser/app). The login screen is
+  // shown only once, before the first sign-in on a given browser/device —
+  // after that, onAuthStateChanged finds the existing session on load and
+  // switches straight to the PFC screen without ever showing auth-gate again.
+  el.googleSigninBtn.addEventListener("click", function () {
+    el.authError.hidden = true;
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function (err) {
+      el.authError.hidden = false;
+      el.authError.textContent = "ログインに失敗しました: " + (err && err.message ? err.message : err);
+    });
+  });
+
+  el.signoutBtn.addEventListener("click", function () {
+    flushPending();
+    auth.signOut();
+  });
+
   function teardownSubscriptions() {
     if (state.unsubscribe) { state.unsubscribe(); state.unsubscribe = null; }
     if (state.idealUnsubscribe) { state.idealUnsubscribe(); state.idealUnsubscribe = null; }
     if (state.flushTimer) { clearTimeout(state.flushTimer); state.flushTimer = null; }
   }
 
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {
+    // Falls back to the default persistence if this browser refuses it.
+  });
+
   auth.onAuthStateChanged(function (user) {
+    el.authLoading.hidden = true;
+
     if (!user) {
       state.uid = null;
       teardownSubscriptions();
       el.appRoot.hidden = true;
-      auth.signInAnonymously().catch(function (err) {
-        el.authLoading.textContent = "読み込みに失敗しました: " + (err && err.message ? err.message : err);
-      });
+      el.authGate.hidden = false;
       return;
     }
 
-    el.authLoading.hidden = true;
     state.uid = user.uid;
+    el.authGate.hidden = true;
     el.appRoot.hidden = false;
+    el.userName.textContent = user.displayName || user.email || "";
+    el.userAvatar.src = user.photoURL || "";
 
     state.currentDate = todayStr;
     state.confirmed = { p: 0, f: 0, c: 0 };
