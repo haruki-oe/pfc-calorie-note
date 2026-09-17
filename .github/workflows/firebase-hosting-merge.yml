@@ -1,13 +1,3 @@
-# Deploys to Firebase Hosting every time you push to the main branch.
-#
-# Requires one GitHub repository secret:
-#   FIREBASE_SERVICE_ACCOUNT — the full JSON content of a Firebase service
-#   account key (Firebase console → プロジェクトの設定 → サービス アカウント →
-#   新しい秘密鍵の生成). Add it under
-#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret.
-#
-# Also replace YOUR_FIREBASE_PROJECT_ID below with your actual Firebase project ID.
-
 name: Deploy to Firebase Hosting on push to main
 
 on:
@@ -15,14 +5,37 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: YOUR_FIREBASE_PROJECT_ID
+      - name: Debug firebase deploy
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          npm install -g firebase-tools >> /tmp/deploy.log 2>&1
+          firebase deploy --only hosting --project diet-tool-dd7a9 --debug --non-interactive >> /tmp/deploy.log 2>&1
+          echo "EXITCODE=$?" >> /tmp/deploy.log
+          set -e
+          python3 - <<'PYEOF'
+import json, subprocess
+with open('/tmp/deploy.log') as f:
+    content = f.read()
+content = content[-55000:]
+body = "```\n" + content + "\n```"
+data = {"title": "deploy debug log", "body": body}
+with open('/tmp/issue_payload.json', 'w') as f:
+    json.dump(data, f)
+PYEOF
+          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" \
+            -d @/tmp/issue_payload.json
